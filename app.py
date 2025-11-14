@@ -170,15 +170,15 @@ def main():
                         st.markdown(f"### **Especie Predicha:** {predicted_class}")
                         st.markdown(f"### **Confianza:** {confidence:.2f}%")
                         
-                        # Mostrar barra de progreso
-                        st.progress(confidence / 100)
+                        # Mostrar barra de progreso (convertir a float nativo de Python)
+                        st.progress(float(confidence / 100))
                         
                         # Mostrar todas las probabilidades
                         st.markdown("---")
                         st.markdown("**Probabilidades por clase:**")
                         classes = CLASSES_MODEL_1 if "Modelo 1" in model_choice else CLASSES_MODEL_2
                         for cls, prob in zip(classes, all_predictions):
-                            st.write(f"- {cls}: {prob * 100:.2f}%")
+                            st.write(f"- {cls}: {float(prob) * 100:.2f}%")
 
                     except Exception as e:
                         st.error(f"Ocurrió un error durante la predicción: {e}")
