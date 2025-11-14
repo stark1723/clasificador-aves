@@ -1,5 +1,6 @@
 streamlit==1.29.0
-tensorflow==2.15.0
-pillow==10.1.0
-numpy==1.26.2
+tensorflow-cpu==2.13.0
+pillow==10.0.0
+numpy==1.24.3
 gdown==4.7.1
+protobuf==3.20.3
