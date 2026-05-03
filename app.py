@@ -594,6 +594,7 @@ def auth_screen():
                     users[email]["last_login"] = datetime.now().isoformat()
                     save_users(users)
                     # Persistir sesión en disco para sobrevivir recargas
+                    st.session_state.login_time = datetime.now().isoformat()
                     save_session(email, st.session_state.user_name, role)
                     st.success(f"¡Bienvenido/a, {st.session_state.user_name}!")
                     st.rerun()
@@ -794,6 +795,38 @@ def auth_screen():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ─── HELPERS SIDEBAR
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def format_connected_time():
+    """Calcula cuánto tiempo lleva el usuario conectado en esta sesión."""
+    login_str = st.session_state.get("login_time")
+    if not login_str:
+        return "—"
+    try:
+        delta = datetime.now() - datetime.fromisoformat(login_str)
+        total = int(delta.total_seconds())
+        h, rem = divmod(total, 3600)
+        m, s   = divmod(rem, 60)
+        if h > 0:
+            return f"{h}h {m:02d}m"
+        elif m > 0:
+            return f"{m}m {s:02d}s"
+        else:
+            return f"{s}s"
+    except Exception:
+        return "—"
+
+def get_user_top_species(email, limit=5):
+    """Devuelve las N especies más consultadas por el usuario."""
+    stats = load_stats()
+    my_preds = [p for p in stats["predictions"] if p["user_email"] == email]
+    counts = Counter(p["species"] for p in my_preds)
+    total  = len(my_preds)
+    return counts.most_common(limit), total
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ─── SIDEBAR
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -801,54 +834,87 @@ def render_sidebar(models_dict):
     role      = st.session_state.get("user_role", "usuario")
     av_color  = avatar_color(role)
     current   = st.session_state.get("current_page", "clasificador")
+    email     = st.session_state.get("user_email", "")
+    name      = st.session_state.get("user_name", "")
 
     with st.sidebar:
-        # Logo
+
+        # ── Logo ──────────────────────────────────────────────────────────
         st.markdown("""
-        <div style="padding:1rem 0 1.2rem 0;">
+        <div style="padding:1rem 0 1rem 0;">
             <div style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:#fff;">
                 🦅 AvisFauna
             </div>
-            <div style="font-size:0.75rem; color:rgba(255,255,255,0.35); margin-top:3px;">
+            <div style="font-size:0.74rem; color:rgba(255,255,255,0.32); margin-top:2px;">
                 Identificación inteligente
             </div>
         </div>
-        <div style="height:1px; background:rgba(255,255,255,0.08); margin-bottom:1.2rem;"></div>
+        <div style="height:1px; background:rgba(255,255,255,0.08); margin-bottom:1rem;"></div>
         """, unsafe_allow_html=True)
 
-        # Avatar + info usuario
+        # ── Tarjeta de usuario ────────────────────────────────────────────
+        connected_time = format_connected_time()
+        role_info      = ROLES.get(role, ROLES["usuario"])
+
         st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">
-            <div style="width:40px;height:40px;border-radius:50%;background:{av_color};
-                        display:flex;align-items:center;justify-content:center;
-                        font-weight:700;font-size:1rem;color:#fff;flex-shrink:0;">
-                {st.session_state.user_name[0].upper()}
+        <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.10);
+                    border-radius:14px; padding:1rem; margin-bottom:1rem;">
+
+            <!-- Avatar + nombre -->
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.9rem;">
+                <div style="width:42px;height:42px;border-radius:50%;background:{av_color};
+                            display:flex;align-items:center;justify-content:center;
+                            font-weight:700;font-size:1.05rem;color:#fff;flex-shrink:0;
+                            box-shadow:0 0 0 3px rgba(255,255,255,0.08);">
+                    {name[0].upper() if name else "?"}
+                </div>
+                <div style="min-width:0;">
+                    <div style="color:#fff;font-size:0.9rem;font-weight:600;
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {name}
+                    </div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {email}
+                    </div>
+                </div>
             </div>
-            <div>
-                <div style="color:#fff;font-size:0.88rem;font-weight:500;line-height:1.3;">
-                    {st.session_state.user_name}
-                </div>
-                <div style="font-size:0.73rem;color:rgba(255,255,255,0.38);">
-                    {st.session_state.user_email}
-                </div>
-                <div style="margin-top:4px;">{role_badge_html(role)}</div>
+
+            <!-- Rol -->
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        padding:6px 0; border-top:1px solid rgba(255,255,255,0.07);">
+                <span style="font-size:0.72rem; color:rgba(255,255,255,0.38);
+                             text-transform:uppercase; letter-spacing:0.07em;">Rol</span>
+                {role_badge_html(role)}
+            </div>
+
+            <!-- Tiempo conectado -->
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        padding:6px 0; border-top:1px solid rgba(255,255,255,0.07);">
+                <span style="font-size:0.72rem; color:rgba(255,255,255,0.38);
+                             text-transform:uppercase; letter-spacing:0.07em;">Conectado</span>
+                <span style="font-size:0.82rem; font-weight:600; color:#60a5fa;">
+                    ⏱ {connected_time}
+                </span>
             </div>
         </div>
-        <div style="height:1px; background:rgba(255,255,255,0.08); margin-bottom:1.2rem;"></div>
         """, unsafe_allow_html=True)
 
-        # Navegación
+        # ── Navegación ────────────────────────────────────────────────────
+        st.markdown('<div class="label-muted" style="margin-bottom:0.5rem;">Navegación</div>', unsafe_allow_html=True)
+
         nav_items = [("clasificador", "🔬", "Clasificador")]
         if can(role, "ver_estadisticas"):
             nav_items.append(("estadisticas", "📊", "Mis estadísticas"))
         if can(role, "dashboard_admin"):
             nav_items.append(("dashboard", "🛡️", "Panel de admin"))
+            nav_items.append(("roles", "👥", "Gestión de roles"))
 
-        st.markdown('<div class="label-muted" style="margin-bottom:0.6rem;">Navegación</div>', unsafe_allow_html=True)
         for page_id, icon, label in nav_items:
-            bg      = "rgba(37,99,235,0.28)" if current == page_id else "rgba(255,255,255,0.03)"
-            color   = "#93c5fd"              if current == page_id else "rgba(255,255,255,0.62)"
-            border  = "1px solid rgba(96,165,250,0.25)" if current == page_id else "1px solid rgba(255,255,255,0.06)"
+            is_active = (current == page_id)
+            bg     = "rgba(37,99,235,0.28)" if is_active else "rgba(255,255,255,0.03)"
+            color  = "#93c5fd"              if is_active else "rgba(255,255,255,0.62)"
+            border = "1px solid rgba(96,165,250,0.25)" if is_active else "1px solid rgba(255,255,255,0.06)"
             st.markdown(f"""
             <div style="background:{bg};border:{border};border-radius:8px;
                         padding:8px 12px;margin-bottom:4px;color:{color};font-size:0.88rem;">
@@ -859,9 +925,10 @@ def render_sidebar(models_dict):
                 st.session_state.current_page = page_id
                 st.rerun()
 
+        # ── Modelo ────────────────────────────────────────────────────────
         st.markdown("""
-        <div style="height:1px; background:rgba(255,255,255,0.08); margin:1rem 0;"></div>
-        <div class="label-muted" style="margin-bottom:0.5rem;">Modelo de clasificación</div>
+        <div style="height:1px; background:rgba(255,255,255,0.08); margin:0.8rem 0 0.6rem 0;"></div>
+        <div class="label-muted" style="margin-bottom:0.4rem;">Modelo de clasificación</div>
         """, unsafe_allow_html=True)
 
         model_choice = st.selectbox(
@@ -870,23 +937,63 @@ def render_sidebar(models_dict):
             label_visibility="collapsed"
         )
 
-        # Lista de especies (solo en clasificador)
-        if current == "clasificador":
+        # ── Mini estadísticas de especies (sidebar) ───────────────────────
+        st.markdown("""
+        <div style="height:1px; background:rgba(255,255,255,0.08); margin:0.8rem 0 0.7rem 0;"></div>
+        <div class="label-muted" style="margin-bottom:0.6rem;">Mis aves más examinadas</div>
+        """, unsafe_allow_html=True)
+
+        top_species, total_user = get_user_top_species(email, limit=5)
+
+        if total_user == 0:
             st.markdown("""
-            <div style="height:1px; background:rgba(255,255,255,0.08); margin:1rem 0;"></div>
-            <div class="label-muted" style="margin-bottom:0.7rem;">Especies detectables</div>
+            <div style="font-size:0.78rem; color:rgba(255,255,255,0.3); text-align:center;
+                        padding:0.8rem 0; font-style:italic;">
+                Aún no hay clasificaciones
+            </div>
             """, unsafe_allow_html=True)
-            for sci in CLASSES_MODEL_1:
-                common = COMMON_NAMES.get(sci, "")
+        else:
+            max_cnt = top_species[0][1] if top_species else 1
+            for sp, cnt in top_species:
+                common  = COMMON_NAMES.get(sp, "")
+                pct_bar = cnt / max_cnt * 100
+                pct_tot = cnt / total_user * 100
+                short_sp = sp.split(" ")[1] if " " in sp else sp  # solo epíteto
                 st.markdown(f"""
-                <div style="margin-bottom:7px;">
-                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.65);font-style:italic;">{sci}</div>
-                    <div style="font-size:0.71rem;color:rgba(255,255,255,0.35);">{common}</div>
+                <div style="margin-bottom:9px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                        <div style="min-width:0; flex:1;">
+                            <div style="font-size:0.77rem; font-style:italic;
+                                        color:rgba(255,255,255,0.72);
+                                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                {sp}
+                            </div>
+                            <div style="font-size:0.68rem; color:rgba(255,255,255,0.35);">
+                                {common}
+                            </div>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0; margin-left:6px;">
+                            <div style="font-size:0.8rem; font-weight:700; color:#93c5fd;">{cnt}×</div>
+                            <div style="font-size:0.67rem; color:rgba(255,255,255,0.3);">{pct_tot:.0f}%</div>
+                        </div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.06); border-radius:3px; height:4px;">
+                        <div style="width:{pct_bar:.1f}%; height:4px; border-radius:3px;
+                                    background:linear-gradient(90deg,#1d4ed8,#60a5fa);"></div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
+            st.markdown(f"""
+            <div style="font-size:0.71rem; color:rgba(255,255,255,0.3);
+                        text-align:right; margin-top:2px;">
+                {total_user} clasificaciones totales
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── Cerrar sesión ─────────────────────────────────────────────────
         st.markdown("""
-        <div style="height:1px; background:rgba(255,255,255,0.08); margin:1rem 0;"></div>
+        <div style="height:1px; background:rgba(255,255,255,0.08); margin:0.9rem 0 0.7rem 0;"></div>
         """, unsafe_allow_html=True)
 
         if st.button("Cerrar sesión", use_container_width=True):
@@ -1382,6 +1489,171 @@ def page_dashboard_admin():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ─── PÁGINA: GESTIÓN DE ROLES (solo administrador)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_roles():
+    users     = load_users()
+    stats     = load_stats()
+    all_preds = stats["predictions"]
+
+    st.markdown('<div class="page-title animate-in">👥 Gestión de roles</div>', unsafe_allow_html=True)
+    st.markdown('<div class="display-subtitle" style="margin-bottom:2rem;">Asigna y modifica el rol de cada usuario registrado en AvisFauna</div>', unsafe_allow_html=True)
+
+    # ── Buscador ──────────────────────────────────────────────────────────
+    search = st.text_input("🔍 Buscar por nombre o correo", placeholder="Escribe para filtrar...",
+                           key="roles_search")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Tabla de roles ────────────────────────────────────────────────────
+    # Cabecera
+    st.markdown("""
+    <div style="display:grid; grid-template-columns:2fr 2fr 1.2fr 1fr 1.4fr 1.2fr;
+                gap:0; padding:8px 14px; margin-bottom:4px;">
+        <div class="label-muted">Usuario</div>
+        <div class="label-muted">Correo</div>
+        <div class="label-muted">Rol actual</div>
+        <div class="label-muted">Clasif.</div>
+        <div class="label-muted">Último acceso</div>
+        <div class="label-muted">Acción</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    any_shown = False
+    for email_u, data in sorted(users.items(), key=lambda x: x[1].get("created_at", "")):
+        name_u     = data.get("name", "Sin nombre")
+        role_u     = data.get("role", "usuario")
+        last_login = data.get("last_login", "")
+        last_str   = last_login[:10] if last_login else "Nunca"
+        user_preds = len([p for p in all_preds if p["user_email"] == email_u])
+
+        if search and search.lower() not in name_u.lower() and search.lower() not in email_u.lower():
+            continue
+
+        any_shown = True
+        av_col    = avatar_color(role_u)
+        is_admin_fixed = (email_u == ADMIN_EMAIL)
+
+        # Fila de usuario
+        col_name, col_email, col_role, col_preds, col_last, col_action = st.columns([2, 2, 1.2, 1, 1.4, 1.2])
+
+        with col_name:
+            st.markdown(f"""
+            <div style="display:flex; align-items:center; gap:8px; padding:10px 0;">
+                <div style="width:32px;height:32px;border-radius:50%;background:{av_col};
+                            display:flex;align-items:center;justify-content:center;
+                            font-weight:700;font-size:0.85rem;color:#fff;flex-shrink:0;">
+                    {name_u[0].upper()}
+                </div>
+                <div style="font-size:0.85rem;color:rgba(255,255,255,0.85);font-weight:500;
+                            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    {name_u}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_email:
+            st.markdown(f"""
+            <div style="font-size:0.77rem; color:rgba(255,255,255,0.42);
+                        padding:14px 0; word-break:break-all;">
+                {email_u}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_role:
+            st.markdown(f"""
+            <div style="padding:12px 0;">
+                {role_badge_html(role_u)}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_preds:
+            st.markdown(f"""
+            <div style="font-size:0.9rem; font-weight:700; color:#93c5fd; padding:14px 0;">
+                {user_preds}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_last:
+            st.markdown(f"""
+            <div style="font-size:0.78rem; color:rgba(255,255,255,0.45); padding:14px 0;">
+                {last_str}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_action:
+            if is_admin_fixed:
+                st.markdown("""
+                <div style="font-size:0.72rem; color:rgba(253,186,116,0.7);
+                            padding:12px 0; font-style:italic;">
+                    👑 fijo
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                new_role = st.selectbox(
+                    label="rol",
+                    options=list(ROLES.keys()),
+                    index=list(ROLES.keys()).index(role_u),
+                    key=f"rp_{email_u}",
+                    label_visibility="collapsed"
+                )
+                if st.button("Guardar", key=f"rb_{email_u}", use_container_width=True):
+                    users_fresh = load_users()
+                    users_fresh[email_u]["role"] = new_role
+                    save_users(users_fresh)
+                    st.success(f"✅ Rol de **{name_u}** → **{ROLES[new_role]['label']}**")
+                    st.rerun()
+
+        # Separador entre filas
+        st.markdown("""
+        <div style="height:1px; background:rgba(255,255,255,0.05); margin:0 0 2px 0;"></div>
+        """, unsafe_allow_html=True)
+
+    if not any_shown:
+        st.markdown('<div class="alert-info">No se encontraron usuarios con ese filtro.</div>',
+                    unsafe_allow_html=True)
+
+    # ── Resumen de distribución de roles ──────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title" style="margin-bottom:1.2rem;">📊 Distribución de roles</div>',
+                unsafe_allow_html=True)
+
+    role_counts = Counter(u.get("role", "usuario") for u in users.values())
+    total_u     = len(users)
+    role_order  = ["administrador", "experto", "usuario"]
+    col_cards   = st.columns(3)
+
+    for col, r in zip(col_cards, role_order):
+        cnt    = role_counts.get(r, 0)
+        pct    = cnt / total_u * 100 if total_u else 0
+        ri     = ROLES[r]
+        colors = {"administrador": "#fca5a5", "experto": "#86efac", "usuario": "#93c5fd"}
+        bar_c  = colors[r]
+        with col:
+            st.markdown(f"""
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09);
+                        border-radius:12px; padding:1rem; text-align:center;">
+                <div style="font-size:1.6rem; margin-bottom:6px;">{ri['icon']}</div>
+                <div style="font-size:1.8rem; font-weight:700; color:#fff; line-height:1;">{cnt}</div>
+                <div style="font-size:0.72rem; color:rgba(255,255,255,0.42);
+                            text-transform:uppercase; letter-spacing:0.07em; margin:4px 0 10px;">
+                    {ri['label']}{'es' if r == 'administrador' else 's'}
+                </div>
+                <div style="background:rgba(255,255,255,0.07); border-radius:3px; height:5px;">
+                    <div style="width:{pct:.1f}%; height:5px; border-radius:3px;
+                                background:{bar_c}; opacity:0.7;"></div>
+                </div>
+                <div style="font-size:0.72rem; color:rgba(255,255,255,0.3); margin-top:5px;">
+                    {pct:.0f}% del total
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ─── APP PRINCIPAL
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1412,6 +1684,12 @@ def main_app():
         else:
             st.error("⛔ Acceso restringido a administradores.")
 
+    elif current_page == "roles":
+        if can(role, "gestionar_usuarios"):
+            page_roles()
+        else:
+            st.error("⛔ Acceso restringido a administradores.")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ─── PERSISTENCIA DE SESIÓN (archivo local)
@@ -1422,11 +1700,13 @@ INACTIVITY_MINS = 15   # minutos sin actividad → cierre automático
 
 def save_session(email, name, role):
     """Guarda la sesión en disco para sobrevivir recargas."""
+    now = datetime.now().isoformat()
     data = {
-        "email":      email,
-        "name":       name,
-        "role":       role,
-        "last_active": datetime.now().isoformat()
+        "email":       email,
+        "name":        name,
+        "role":        role,
+        "last_active": now,
+        "login_time":  now
     }
     with open(SESSION_FILE, "w") as f:
         json.dump(data, f)
@@ -1442,6 +1722,9 @@ def load_session():
         if datetime.now() - last > timedelta(minutes=INACTIVITY_MINS):
             clear_session()
             return None
+        # Garantizar campo login_time por compatibilidad con sesiones antiguas
+        if "login_time" not in data:
+            data["login_time"] = data["last_active"]
         return data
     except Exception:
         return None
@@ -1490,6 +1773,7 @@ def main():
             st.session_state.user_email    = saved["email"]
             st.session_state.user_name     = saved["name"]
             st.session_state.user_role     = saved["role"]
+            st.session_state.login_time    = saved.get("login_time", datetime.now().isoformat())
             st.session_state.current_page  = st.session_state.get("current_page", "clasificador")
         else:
             st.session_state.authenticated = False
