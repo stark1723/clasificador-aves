@@ -19,7 +19,7 @@ st.set_page_config(
     page_title="AvisFauna — Identificador de Aves",
     page_icon="🦅",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -38,6 +38,10 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+
+/* ── Sidebar oculto en auth ── */
+[data-testid="stSidebarCollapsedControl"] { display: none !important; }
+.auth-mode [data-testid="stSidebarCollapsedControl"] { display: none !important; }
 
 /* ── Tarjetas ── */
 .card {
@@ -193,7 +197,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 # ─── ROLES Y PERMISOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-ADMIN_EMAIL = "fierroalejandro739@gmail.com"
+ADMIN_EMAIL = "adminfs01@gmail.com"
 
 ROLES = {
     "administrador": {"label": "Administrador", "css": "role-admin",   "icon": "👑"},
@@ -268,7 +272,7 @@ def record_prediction(user_email, species, confidence, model_used):
     save_stats(stats)
 
 def ensure_admin_role():
-    """Garantiza que fierroalejandro739@gmail.com siempre sea administrador."""
+    """Garantiza que adminfs01@gmail.com siempre sea administrador."""
     users = load_users()
     if ADMIN_EMAIL in users and users[ADMIN_EMAIL].get("role") != "administrador":
         users[ADMIN_EMAIL]["role"] = "administrador"
@@ -510,17 +514,60 @@ def predict(image, model_key, models_dict):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def auth_screen():
+    # Ocultar el botón colapsar sidebar en la pantalla de auth
+    st.markdown("""
+    <style>
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] { display: none !important; }
+    section[data-testid="stSidebar"] { display: none !important; }
+    /* ── Tabs auth mejorados ── */
+    .stTabs [data-baseweb="tab-list"] {
+        background: transparent !important;
+        border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        color: rgba(255,255,255,0.42) !important;
+        padding: 14px 28px !important;
+        border-radius: 0 !important;
+        border-bottom: 2px solid transparent !important;
+        letter-spacing: 0.01em;
+        transition: color 0.2s, border-color 0.2s !important;
+        background: transparent !important;
+        margin-right: 4px !important;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #60a5fa !important;
+        background: transparent !important;
+        border-bottom: 2px solid #2563eb !important;
+        border-radius: 0 !important;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: rgba(255,255,255,0.75) !important;
+        background: rgba(255,255,255,0.04) !important;
+    }
+    .stTabs [data-baseweb="tab-panel"] {
+        padding-top: 2rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown('<div class="auth-container animate-in">', unsafe_allow_html=True)
 
     st.markdown("""
-    <div style="text-align:center; margin-bottom:2rem; padding-top:1rem;">
+    <div style="text-align:center; margin-bottom:2.5rem; padding-top:2rem;">
         <span class="bird-icon">🦅</span>
         <div class="auth-logo">AvisFauna</div>
         <div class="auth-tagline">Identificación inteligente de aves colombianas</div>
     </div>
     """, unsafe_allow_html=True)
 
-    tab_login, tab_register, tab_reset = st.tabs(["Iniciar sesión", "Registrarse", "Olvidé mi contraseña"])
+    tab_login, tab_register, tab_reset = st.tabs(["  Iniciar sesión  ", "  Registrarse  ", "  Olvidé mi contraseña  "])
 
     # ── Login ──────────────────────────────────────────────────────────────
     with tab_login:
@@ -546,6 +593,8 @@ def auth_screen():
                     st.session_state.current_page  = "clasificador"
                     users[email]["last_login"] = datetime.now().isoformat()
                     save_users(users)
+                    # Persistir sesión en disco para sobrevivir recargas
+                    save_session(email, st.session_state.user_name, role)
                     st.success(f"¡Bienvenido/a, {st.session_state.user_name}!")
                     st.rerun()
                 else:
@@ -841,6 +890,7 @@ def render_sidebar(models_dict):
         """, unsafe_allow_html=True)
 
         if st.button("Cerrar sesión", use_container_width=True):
+            clear_session()
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
@@ -1364,14 +1414,127 @@ def main_app():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ─── PERSISTENCIA DE SESIÓN (archivo local)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SESSION_FILE    = ".session_store.json"
+INACTIVITY_MINS = 15   # minutos sin actividad → cierre automático
+
+def save_session(email, name, role):
+    """Guarda la sesión en disco para sobrevivir recargas."""
+    data = {
+        "email":      email,
+        "name":       name,
+        "role":       role,
+        "last_active": datetime.now().isoformat()
+    }
+    with open(SESSION_FILE, "w") as f:
+        json.dump(data, f)
+
+def load_session():
+    """Carga sesión del disco. Retorna None si no existe o expiró."""
+    if not os.path.exists(SESSION_FILE):
+        return None
+    try:
+        with open(SESSION_FILE, "r") as f:
+            data = json.load(f)
+        last = datetime.fromisoformat(data["last_active"])
+        if datetime.now() - last > timedelta(minutes=INACTIVITY_MINS):
+            clear_session()
+            return None
+        return data
+    except Exception:
+        return None
+
+def update_session_activity():
+    """Actualiza el timestamp de última actividad."""
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, "r") as f:
+                data = json.load(f)
+            data["last_active"] = datetime.now().isoformat()
+            with open(SESSION_FILE, "w") as f:
+                json.dump(data, f)
+        except Exception:
+            pass
+
+def clear_session():
+    """Elimina el archivo de sesión."""
+    if os.path.exists(SESSION_FILE):
+        os.remove(SESSION_FILE)
+
+def seconds_until_timeout():
+    """Devuelve los segundos que quedan antes del cierre por inactividad."""
+    if not os.path.exists(SESSION_FILE):
+        return 0
+    try:
+        with open(SESSION_FILE, "r") as f:
+            data = json.load(f)
+        last    = datetime.fromisoformat(data["last_active"])
+        elapsed = (datetime.now() - last).total_seconds()
+        return max(0, INACTIVITY_MINS * 60 - elapsed)
+    except Exception:
+        return 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ─── PUNTO DE ENTRADA
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
+    # ── 1. Restaurar sesión desde disco si session_state está vacío ────────
     if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
+        saved = load_session()
+        if saved:
+            st.session_state.authenticated = True
+            st.session_state.user_email    = saved["email"]
+            st.session_state.user_name     = saved["name"]
+            st.session_state.user_role     = saved["role"]
+            st.session_state.current_page  = st.session_state.get("current_page", "clasificador")
+        else:
+            st.session_state.authenticated = False
 
-    if not st.session_state.authenticated:
+    # ── 2. Verificar inactividad si hay sesión activa ──────────────────────
+    if st.session_state.get("authenticated"):
+        secs_left = seconds_until_timeout()
+        if secs_left <= 0:
+            # Tiempo agotado → cerrar sesión
+            clear_session()
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.session_state.authenticated   = False
+            st.session_state.session_expired = True
+            st.rerun()
+        else:
+            # Registrar actividad en cada interacción
+            update_session_activity()
+
+            # ── Banner de cuenta regresiva si quedan ≤ 3 minutos ──────────
+            if secs_left <= 180:
+                mins = int(secs_left // 60)
+                secs = int(secs_left % 60)
+                st.markdown(f"""
+                <div style="position:fixed; bottom:1.2rem; right:1.4rem; z-index:9999;
+                            background:rgba(180,100,0,0.92); border:1px solid rgba(253,186,116,0.5);
+                            border-radius:12px; padding:10px 18px; display:flex; align-items:center;
+                            gap:10px; backdrop-filter:blur(8px); box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+                    <span style="font-size:1.1rem;">⏱️</span>
+                    <div>
+                        <div style="font-size:0.78rem; color:rgba(255,255,255,0.65); line-height:1;">Sesión expira en</div>
+                        <div style="font-size:1rem; font-weight:700; color:#fff; line-height:1.3;">
+                            {mins}:{secs:02d}
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ── 3. Mostrar aviso de sesión expirada ───────────────────────────────
+    if st.session_state.get("session_expired"):
+        st.warning("⏱ Tu sesión expiró por inactividad. Por favor inicia sesión de nuevo.")
+        del st.session_state["session_expired"]
+
+    # ── 4. Routing principal ───────────────────────────────────────────────
+    if not st.session_state.get("authenticated"):
         auth_screen()
     else:
         main_app()
