@@ -290,6 +290,121 @@ def generate_token(length=8):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ─── ENVÍO DE CORREO (SMTP)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_email_config():
+    """
+    Lee credenciales SMTP desde st.secrets.
+    Configura en .streamlit/secrets.toml:
+        [email]
+        sender   = "tuemail@gmail.com"
+        password = "tu_app_password_gmail"
+    """
+    try:
+        sender   = st.secrets["email"]["sender"]
+        password = st.secrets["email"]["password"]
+        return sender, password
+    except Exception:
+        return None, None
+
+
+def send_reset_email(dest_email, dest_name, token):
+    """
+    Envía el código de recuperación por correo usando SMTP/TLS (Gmail).
+    Retorna (True, "") si tiene éxito o (False, codigo_error) si falla.
+    """
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    sender, password = get_email_config()
+    if not sender or not password:
+        return False, "no_config"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"></head>
+    <body style="margin:0;padding:0;background:#0a1628;font-family:'Segoe UI',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;padding:40px 0;">
+        <tr><td align="center">
+          <table width="520" cellpadding="0" cellspacing="0"
+                 style="background:#0f1f38;border-radius:16px;border:1px solid rgba(255,255,255,0.1);overflow:hidden;">
+            <tr>
+              <td style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:32px 40px;text-align:center;">
+                <div style="font-size:2.2rem;">🦅</div>
+                <div style="font-family:Georgia,serif;font-size:1.6rem;font-weight:700;color:#ffffff;margin-top:8px;">
+                  AvisFauna
+                </div>
+                <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);margin-top:4px;">
+                  Recuperación de contraseña
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 40px;">
+                <p style="color:rgba(255,255,255,0.85);font-size:0.97rem;margin:0 0 16px 0;line-height:1.6;">
+                  Hola <strong style="color:#ffffff;">{dest_name}</strong>,
+                </p>
+                <p style="color:rgba(255,255,255,0.65);font-size:0.92rem;margin:0 0 28px 0;line-height:1.6;">
+                  Recibimos una solicitud para restablecer la contrasena de tu cuenta en AvisFauna.
+                  Usa el siguiente codigo de verificacion:
+                </p>
+                <div style="background:rgba(37,99,235,0.15);border:2px solid rgba(96,165,250,0.35);
+                            border-radius:12px;padding:24px;text-align:center;margin-bottom:28px;">
+                  <div style="font-size:0.75rem;color:rgba(255,255,255,0.45);
+                              text-transform:uppercase;letter-spacing:0.12em;margin-bottom:10px;">
+                    Codigo de verificacion
+                  </div>
+                  <div style="font-size:2.4rem;font-weight:700;color:#60a5fa;
+                              letter-spacing:0.3em;font-family:'Courier New',monospace;">
+                    {token}
+                  </div>
+                  <div style="font-size:0.78rem;color:rgba(255,255,255,0.4);margin-top:10px;">
+                    Valido durante <strong style="color:rgba(255,255,255,0.6);">15 minutos</strong>
+                  </div>
+                </div>
+                <p style="color:rgba(255,255,255,0.4);font-size:0.83rem;line-height:1.6;margin:0;">
+                  Si no solicitaste este cambio, puedes ignorar este correo. Tu cuenta permanece segura.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:rgba(0,0,0,0.2);padding:20px 40px;
+                         border-top:1px solid rgba(255,255,255,0.07);text-align:center;">
+                <p style="color:rgba(255,255,255,0.25);font-size:0.78rem;margin:0;">
+                  AvisFauna &mdash; Identificacion inteligente de aves colombianas
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "AvisFauna - Codigo de recuperacion de contrasena"
+    msg["From"]    = f"AvisFauna <{sender}>"
+    msg["To"]      = dest_email
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(sender, password)
+            server.sendmail(sender, dest_email, msg.as_string())
+        return True, ""
+    except smtplib.SMTPAuthenticationError:
+        return False, "auth_error"
+    except Exception as e:
+        return False, str(e)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ─── CONFIGURACIÓN DE MODELOS (GOOGLE DRIVE)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -479,19 +594,27 @@ def auth_screen():
         if "reset_step" not in st.session_state:
             st.session_state.reset_step = 1
 
-        # Paso 1: solicitar código
+        # ── PASO 1: solicitar código ───────────────────────────────────────
         if st.session_state.reset_step == 1:
-            st.markdown('<p class="display-subtitle" style="text-align:center; margin-bottom:1rem;">Ingresa tu correo y te daremos un código de recuperación.</p>', unsafe_allow_html=True)
+            st.markdown("""
+            <div style="text-align:center; margin-bottom:1.4rem;">
+                <div style="font-size:2rem; margin-bottom:6px;">🔐</div>
+                <div class="display-subtitle">
+                    Ingresa tu correo registrado y te enviaremos<br>un código de verificación de 8 caracteres.
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
             with st.form("form_reset_req"):
                 reset_email = st.text_input("Correo electrónico", placeholder="usuario@correo.com")
-                sub_req     = st.form_submit_button("Enviar código →", use_container_width=True)
+                sub_req     = st.form_submit_button("📨 Enviar código de recuperación", use_container_width=True)
 
             if sub_req:
                 users = load_users()
                 if not reset_email:
                     st.error("Ingresa tu correo.")
                 elif not validate_email(reset_email):
-                    st.error("Formato de correo inválido.")
+                    st.error("El formato del correo no es válido.")
                 elif reset_email not in users:
                     st.error("No encontramos una cuenta con ese correo.")
                 else:
@@ -503,41 +626,104 @@ def auth_screen():
                     }
                     save_reset_tokens(tokens)
                     st.session_state.reset_email_target = reset_email
-                    st.session_state.reset_step         = 2
-                    # En producción: enviar por email. Aquí se muestra en pantalla (demo).
-                    st.info(f"🔑 Tu código de recuperación (demo): **{token}**\n\nVálido por 15 minutos.")
-                    st.rerun()
 
-        # Paso 2: verificar código y nueva contraseña
+                    dest_name   = users[reset_email].get("name", reset_email.split("@")[0])
+                    sent, error = send_reset_email(reset_email, dest_name, token)
+
+                    if sent:
+                        st.session_state.reset_step       = 2
+                        st.session_state.reset_email_sent = True
+                        st.rerun()
+                    elif error == "no_config":
+                        st.session_state.reset_step       = 2
+                        st.session_state.reset_email_sent = False
+                        st.session_state.reset_demo_token = token
+                        st.rerun()
+                    elif error == "auth_error":
+                        st.error("Error de autenticacion SMTP. Verifica las credenciales en secrets.toml.")
+                    else:
+                        st.error(f"No se pudo enviar el correo: {error}")
+
+        # ── PASO 2: ingresar código + nueva contraseña ─────────────────────
         elif st.session_state.reset_step == 2:
             target_email = st.session_state.get("reset_email_target", "")
-            st.markdown(f'<p style="color:rgba(255,255,255,0.55); text-align:center; font-size:0.9rem;">Código enviado a: <strong style="color:#93c5fd;">{target_email}</strong></p>', unsafe_allow_html=True)
+            email_sent   = st.session_state.get("reset_email_sent", False)
+            demo_token   = st.session_state.get("reset_demo_token", "")
+
+            if email_sent:
+                st.markdown(f"""
+                <div style="background:rgba(134,239,172,0.08); border:1px solid rgba(134,239,172,0.25);
+                            border-radius:12px; padding:1.1rem 1.4rem; margin-bottom:1.4rem; text-align:center;">
+                    <div style="font-size:1.5rem; margin-bottom:6px;">📬</div>
+                    <div style="font-size:0.92rem; color:#86efac; font-weight:500;">
+                        Código enviado exitosamente
+                    </div>
+                    <div style="font-size:0.8rem; color:rgba(255,255,255,0.5); margin-top:4px;">
+                        Revisa la bandeja de entrada de <strong style="color:#93c5fd;">{target_email}</strong><br>
+                        (también revisa spam / correo no deseado)
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.25);
+                            border-radius:12px; padding:1.1rem 1.4rem; margin-bottom:1rem; text-align:center;">
+                    <div style="font-size:1.3rem; margin-bottom:6px;">⚙️</div>
+                    <div style="font-size:0.85rem; color:#fde68a; font-weight:500;">Modo demo — SMTP no configurado</div>
+                    <div style="font-size:0.78rem; color:rgba(255,255,255,0.45); margin-top:3px;">
+                        Configura <code style="color:#fcd34d;">.streamlit/secrets.toml</code> para envio real.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if demo_token:
+                    st.markdown(f"""
+                    <div style="background:rgba(37,99,235,0.12); border:2px solid rgba(96,165,250,0.30);
+                                border-radius:12px; padding:1.2rem; text-align:center; margin-bottom:1.2rem;">
+                        <div style="font-size:0.73rem; color:rgba(255,255,255,0.42); text-transform:uppercase;
+                                    letter-spacing:0.1em; margin-bottom:8px;">Tu código de recuperación</div>
+                        <div style="font-size:2rem; font-weight:700; color:#60a5fa;
+                                    letter-spacing:0.25em; font-family:monospace;">
+                            {demo_token}
+                        </div>
+                        <div style="font-size:0.75rem; color:rgba(255,255,255,0.38); margin-top:8px;">
+                            Valido durante 15 minutos
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
             with st.form("form_reset_verify"):
-                input_token = st.text_input("Código de verificación", placeholder="XXXXXXXX")
-                new_pass    = st.text_input("Nueva contraseña",    type="password", placeholder="Mínimo 8 caracteres")
-                new_pass2   = st.text_input("Confirmar contraseña", type="password", placeholder="Repite tu nueva contraseña")
-                sub_verify  = st.form_submit_button("Restablecer contraseña →", use_container_width=True)
+                input_token = st.text_input(
+                    "Código de verificación",
+                    placeholder="Ej: A3BX7K2M",
+                    help="Código de 8 caracteres recibido por correo"
+                )
+                new_pass  = st.text_input("Nueva contraseña",     type="password", placeholder="Mínimo 8 caracteres")
+                new_pass2 = st.text_input("Confirmar contraseña", type="password", placeholder="Repite tu nueva contraseña")
+                sub_verify = st.form_submit_button("🔒 Restablecer contraseña", use_container_width=True)
 
             col_b, _ = st.columns([1, 3])
             with col_b:
                 if st.button("← Volver", use_container_width=True):
-                    st.session_state.reset_step = 1
+                    for k in ["reset_step", "reset_email_target", "reset_email_sent", "reset_demo_token"]:
+                        st.session_state.pop(k, None)
                     st.rerun()
 
             if sub_verify:
                 tokens = load_reset_tokens()
                 ok     = True
+
                 if not input_token or not new_pass or not new_pass2:
                     st.error("Completa todos los campos."); ok = False
                 elif target_email not in tokens:
-                    st.error("No hay un código activo para este correo."); ok = False
+                    st.error("No hay un código activo. Solicita uno nuevo."); ok = False
                 else:
                     t_data  = tokens[target_email]
                     expired = datetime.now() > datetime.fromisoformat(t_data["expires"])
                     if expired:
-                        st.error("El código ha expirado. Solicita uno nuevo."); ok = False
-                    elif input_token.upper() != t_data["token"]:
-                        st.error("Código incorrecto."); ok = False
+                        st.error("El código ha expirado. Vuelve y solicita uno nuevo."); ok = False
+                    elif input_token.strip().upper() != t_data["token"]:
+                        st.error("Código incorrecto. Verifica e intenta de nuevo."); ok = False
 
                 if ok:
                     if len(new_pass) < 8:
@@ -550,10 +736,9 @@ def auth_screen():
                         save_users(users)
                         del tokens[target_email]
                         save_reset_tokens(tokens)
-                        st.success("✅ Contraseña restablecida. ¡Ya puedes iniciar sesión!")
-                        st.session_state.reset_step = 1
-                        if "reset_email_target" in st.session_state:
-                            del st.session_state["reset_email_target"]
+                        for k in ["reset_step", "reset_email_target", "reset_email_sent", "reset_demo_token"]:
+                            st.session_state.pop(k, None)
+                        st.success("Contraseña restablecida correctamente. Ya puedes iniciar sesion!")
                         st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
