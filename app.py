@@ -13,6 +13,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from collections import Counter
 from contextlib import contextmanager
+from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN DE PÁGINA
@@ -25,102 +26,19 @@ st.set_page_config(
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ESTILOS GLOBALES
+# CARGA DE ESTILOS DESDE ARCHIVO EXTERNO
 # ═══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
-.stApp{background:linear-gradient(135deg,#0a1628 0%,#0f2240 50%,#0d1f35 100%);min-height:100vh;}
-#MainMenu,footer,header{visibility:hidden;}
-.block-container{padding-top:2rem;padding-bottom:2rem;}
-[data-testid="stSidebar"]{background:rgba(6,18,40,0.97)!important;border-right:1px solid rgba(255,255,255,0.08)!important;}
-[data-testid="stSidebar"] .stMarkdown,[data-testid="stSidebar"] label,[data-testid="stSidebar"] p{color:rgba(255,255,255,0.75)!important;}
-/* ── Ocultar labels de radio nav y estilizarlo como menu ── */
-[data-testid="stSidebar"] .stRadio > label{display:none!important;}
-[data-testid="stSidebar"] .stRadio > div{gap:4px!important;flex-direction:column!important;}
-[data-testid="stSidebar"] .stRadio > div > label{
-    display:flex!important;align-items:center!important;
-    background:rgba(255,255,255,0.03)!important;
-    border:1px solid rgba(255,255,255,0.06)!important;
-    border-radius:8px!important;padding:9px 12px!important;
-    cursor:pointer!important;font-size:0.88rem!important;
-    color:rgba(255,255,255,0.62)!important;margin:0!important;
-    transition:all 0.15s!important;width:100%!important;
-}
-[data-testid="stSidebar"] .stRadio > div > label:hover{
-    background:rgba(255,255,255,0.07)!important;color:#fff!important;
-}
-[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"]{
-    background:rgba(37,99,235,0.28)!important;
-    border-color:rgba(96,165,250,0.35)!important;
-    color:#93c5fd!important;font-weight:600!important;
-}
-[data-testid="stSidebar"] .stRadio > div > label > div > p{
-    font-size:0.88rem!important;margin:0!important;
-}
-/* Ocultar el circulo del radio button */
-[data-testid="stSidebar"] .stRadio > div > label > div:first-child{display:none!important;}
-/* Ocultar botones de navegación que quedaban visibles */
-[data-testid="stSidebar"] .stButton>button{
-    background:transparent!important;border:none!important;
-    color:rgba(255,255,255,0.62)!important;text-align:left!important;
-    padding:9px 12px!important;font-size:0.88rem!important;
-    border-radius:8px!important;border:1px solid rgba(255,255,255,0.06)!important;
-    margin-bottom:4px!important;height:auto!important;
-}
-[data-testid="stSidebar"] .stButton>button:hover{
-    background:rgba(255,255,255,0.07)!important;color:#fff!important;
-    transform:none!important;box-shadow:none!important;
-}
-/* Cerrar sesion rojo */
-[data-testid="stSidebar"] .stButton:last-of-type>button{
-    background:rgba(185,28,28,0.15)!important;
-    border:1px solid rgba(252,165,165,0.2)!important;
-    color:#fca5a5!important;margin-top:4px!important;
-}
-[data-testid="stSidebar"] .stButton:last-of-type>button:hover{
-    background:rgba(185,28,28,0.3)!important;color:#fff!important;
-}
-.card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);border-radius:16px;padding:2rem;backdrop-filter:blur(12px);}
-.stat-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:1.4rem 1.2rem;text-align:center;}
-.stat-value{font-size:2rem;font-weight:700;color:#fff;line-height:1;margin-bottom:4px;}
-.stat-label{font-size:0.73rem;color:rgba(255,255,255,0.42);text-transform:uppercase;letter-spacing:0.08em;}
-.stat-icon{font-size:1.4rem;margin-bottom:8px;}
-.display-title{font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:700;color:#fff;line-height:1.2;letter-spacing:-0.02em;}
-.display-subtitle{font-size:1.05rem;color:rgba(255,255,255,0.55);font-weight:300;}
-.section-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;color:#fff;}
-.page-title{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:#fff;margin-bottom:0.3rem;}
-.label-muted{font-size:0.78rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.08em;font-weight:500;}
-.role-admin{display:inline-block;background:linear-gradient(135deg,#7c2d12,#b91c1c);color:#fca5a5;font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid rgba(252,165,165,0.25);letter-spacing:0.04em;}
-.role-experto{display:inline-block;background:linear-gradient(135deg,#14532d,#15803d);color:#86efac;font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid rgba(134,239,172,0.25);letter-spacing:0.04em;}
-.role-usuario{display:inline-block;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#93c5fd;font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid rgba(147,197,253,0.25);letter-spacing:0.04em;}
-.result-species{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:600;color:#60a5fa;font-style:italic;margin:0.5rem 0;}
-.result-confidence{font-size:2.5rem;font-weight:700;color:#fff;line-height:1;}
-.result-label{font-size:0.8rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.08em;}
-.prob-bar-container{background:rgba(255,255,255,0.06);border-radius:4px;height:6px;width:100%;overflow:hidden;}
-.prob-bar-fill{height:100%;border-radius:4px;transition:width 0.8s ease;}
-.auth-logo{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:#fff;text-align:center;margin-bottom:0.3rem;}
-.auth-tagline{text-align:center;color:rgba(255,255,255,0.45);font-size:0.9rem;margin-bottom:2rem;}
-.bird-icon{font-size:3rem;display:block;text-align:center;margin-bottom:0.5rem;filter:drop-shadow(0 0 20px rgba(96,165,250,0.4));}
-.stTextInput>div>div>input,.stSelectbox>div>div>div{background:rgba(255,255,255,0.06)!important;border:1px solid rgba(255,255,255,0.14)!important;border-radius:10px!important;color:#fff!important;font-family:'DM Sans',sans-serif!important;}
-.stTextInput>div>div>input:focus{border-color:rgba(96,165,250,0.6)!important;box-shadow:0 0 0 3px rgba(96,165,250,0.12)!important;}
-.stTextInput label,.stSelectbox label{color:rgba(255,255,255,0.70)!important;font-size:0.88rem!important;}
-.stButton>button{background:linear-gradient(135deg,#1d4ed8,#2563eb)!important;color:#fff!important;border:none!important;border-radius:10px!important;font-family:'DM Sans',sans-serif!important;font-weight:500!important;font-size:0.95rem!important;padding:0.65rem 1.5rem!important;transition:all 0.2s!important;width:100%;}
-.stButton>button:hover{background:linear-gradient(135deg,#1e40af,#1d4ed8)!important;transform:translateY(-1px)!important;box-shadow:0 4px 20px rgba(37,99,235,0.35)!important;}
-[data-testid="stFileUploader"]{border:2px dashed rgba(96,165,250,0.30)!important;border-radius:14px!important;background:rgba(96,165,250,0.04)!important;padding:1rem!important;}
-.stProgress>div>div>div>div{background:linear-gradient(90deg,#2563eb,#60a5fa)!important;border-radius:4px!important;}
-.stTabs [data-baseweb="tab-list"]{background:transparent!important;border-bottom:1px solid rgba(255,255,255,0.10)!important;border-radius:0!important;padding:0!important;gap:0!important;}
-.stTabs [data-baseweb="tab"]{font-size:0.95rem!important;font-weight:500!important;color:rgba(255,255,255,0.42)!important;padding:14px 28px!important;border-radius:0!important;border-bottom:2px solid transparent!important;background:transparent!important;margin-right:4px!important;}
-.stTabs [aria-selected="true"]{color:#60a5fa!important;background:transparent!important;border-bottom:2px solid #2563eb!important;border-radius:0!important;}
-.stTabs [data-baseweb="tab-panel"]{padding-top:2rem!important;}
-.model-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.25);color:#93c5fd;font-size:0.78rem;font-weight:500;padding:4px 10px;border-radius:6px;}
-.alert-warn{background:rgba(234,179,8,0.10);border:1px solid rgba(234,179,8,0.25);border-radius:10px;padding:0.8rem 1rem;color:#fde68a;font-size:0.88rem;}
-.alert-info{background:rgba(96,165,250,0.08);border:1px solid rgba(96,165,250,0.20);border-radius:10px;padding:0.8rem 1rem;color:#93c5fd;font-size:0.88rem;}
-@keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.animate-in{animation:fadeSlideIn 0.5s ease forwards;}
-</style>
-""", unsafe_allow_html=True)
+def load_css():
+    """Carga el archivo static/styles.css e inyecta en la app."""
+    css_path = Path(__file__).parent / "static" / "styles.css"
+    if css_path.exists():
+        with open(css_path) as f:
+            css = f.read()
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    else:
+        st.warning("⚠️ No se encontró static/styles.css")
+
+load_css()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ROLES Y PERMISOS
@@ -435,9 +353,8 @@ def format_connected_time():
 # PANTALLA DE AUTENTICACION
 # ═══════════════════════════════════════════════════════════════════════════════
 def auth_screen():
-    st.markdown("""<style>
-    [data-testid="stSidebar"],[data-testid="stSidebarCollapsedControl"],[data-testid="collapsedControl"]{display:none!important;}
-    </style>""", unsafe_allow_html=True)
+    # El CSS para ocultar el sidebar en auth ya está en static/styles.css
+    # No se necesita inyección adicional aquí
 
     col_l, col_c, col_r = st.columns([1,2,1])
     with col_c:
@@ -578,58 +495,7 @@ def render_sidebar(models_dict):
     av_col  = avatar_color(role)
     t_conn  = format_connected_time()
 
-    # CSS para estilizar el radio como menu de navegacion
-    st.markdown("""
-    <style>
-    /* Ocultar label del radio group */
-    [data-testid="stSidebar"] .stRadio>label{display:none!important;}
-    /* Contenedor vertical sin gap extra */
-    [data-testid="stSidebar"] .stRadio>div{flex-direction:column!important;gap:3px!important;}
-    /* Cada opcion del radio como nav item */
-    [data-testid="stSidebar"] .stRadio>div>label{
-        display:flex!important;align-items:center!important;
-        background:rgba(255,255,255,0.03)!important;
-        border:1px solid rgba(255,255,255,0.07)!important;
-        border-radius:8px!important;padding:9px 14px!important;
-        cursor:pointer!important;width:100%!important;margin:0!important;
-        color:rgba(255,255,255,0.65)!important;font-size:0.88rem!important;
-        transition:background 0.15s!important;
-    }
-    [data-testid="stSidebar"] .stRadio>div>label:hover{
-        background:rgba(255,255,255,0.07)!important;color:#fff!important;
-    }
-    /* Item seleccionado */
-    [data-testid="stSidebar"] .stRadio>div>label[data-baseweb="radio"]:has(input:checked),
-    [data-testid="stSidebar"] .stRadio>div>label[aria-checked="true"]{
-        background:rgba(37,99,235,0.30)!important;
-        border-color:rgba(96,165,250,0.40)!important;
-        color:#93c5fd!important;font-weight:600!important;
-    }
-    /* Ocultar circulo del radio */
-    [data-testid="stSidebar"] .stRadio>div>label>div:first-child{display:none!important;}
-    /* Texto del radio */
-    [data-testid="stSidebar"] .stRadio>div>label>div>p{
-        margin:0!important;font-size:0.88rem!important;
-        color:inherit!important;
-    }
-    /* Separador */
-    .sidebar-divider{height:1px;background:rgba(255,255,255,0.08);margin:0.8rem 0;}
-    /* Boton cerrar sesion */
-    [data-testid="stSidebar"] .stButton>button{
-        background:rgba(185,28,28,0.12)!important;
-        border:1px solid rgba(252,165,165,0.18)!important;
-        color:#fca5a5!important;width:100%!important;
-        border-radius:8px!important;padding:9px 14px!important;
-        font-size:0.88rem!important;font-weight:500!important;
-        transition:all 0.15s!important;
-    }
-    [data-testid="stSidebar"] .stButton>button:hover{
-        background:rgba(185,28,28,0.25)!important;color:#fff!important;
-        transform:none!important;box-shadow:none!important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
+    # CSS del sidebar cargado globalmente desde static/styles.css
     with st.sidebar:
         # Logo
         st.markdown("""
