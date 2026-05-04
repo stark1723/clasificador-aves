@@ -36,6 +36,52 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
 .block-container{padding-top:2rem;padding-bottom:2rem;}
 [data-testid="stSidebar"]{background:rgba(6,18,40,0.97)!important;border-right:1px solid rgba(255,255,255,0.08)!important;}
 [data-testid="stSidebar"] .stMarkdown,[data-testid="stSidebar"] label,[data-testid="stSidebar"] p{color:rgba(255,255,255,0.75)!important;}
+/* ── Ocultar labels de radio nav y estilizarlo como menu ── */
+[data-testid="stSidebar"] .stRadio > label{display:none!important;}
+[data-testid="stSidebar"] .stRadio > div{gap:4px!important;flex-direction:column!important;}
+[data-testid="stSidebar"] .stRadio > div > label{
+    display:flex!important;align-items:center!important;
+    background:rgba(255,255,255,0.03)!important;
+    border:1px solid rgba(255,255,255,0.06)!important;
+    border-radius:8px!important;padding:9px 12px!important;
+    cursor:pointer!important;font-size:0.88rem!important;
+    color:rgba(255,255,255,0.62)!important;margin:0!important;
+    transition:all 0.15s!important;width:100%!important;
+}
+[data-testid="stSidebar"] .stRadio > div > label:hover{
+    background:rgba(255,255,255,0.07)!important;color:#fff!important;
+}
+[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"]{
+    background:rgba(37,99,235,0.28)!important;
+    border-color:rgba(96,165,250,0.35)!important;
+    color:#93c5fd!important;font-weight:600!important;
+}
+[data-testid="stSidebar"] .stRadio > div > label > div > p{
+    font-size:0.88rem!important;margin:0!important;
+}
+/* Ocultar el circulo del radio button */
+[data-testid="stSidebar"] .stRadio > div > label > div:first-child{display:none!important;}
+/* Ocultar botones de navegación que quedaban visibles */
+[data-testid="stSidebar"] .stButton>button{
+    background:transparent!important;border:none!important;
+    color:rgba(255,255,255,0.62)!important;text-align:left!important;
+    padding:9px 12px!important;font-size:0.88rem!important;
+    border-radius:8px!important;border:1px solid rgba(255,255,255,0.06)!important;
+    margin-bottom:4px!important;height:auto!important;
+}
+[data-testid="stSidebar"] .stButton>button:hover{
+    background:rgba(255,255,255,0.07)!important;color:#fff!important;
+    transform:none!important;box-shadow:none!important;
+}
+/* Cerrar sesion rojo */
+[data-testid="stSidebar"] .stButton:last-of-type>button{
+    background:rgba(185,28,28,0.15)!important;
+    border:1px solid rgba(252,165,165,0.2)!important;
+    color:#fca5a5!important;margin-top:4px!important;
+}
+[data-testid="stSidebar"] .stButton:last-of-type>button:hover{
+    background:rgba(185,28,28,0.3)!important;color:#fff!important;
+}
 .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);border-radius:16px;padding:2rem;backdrop-filter:blur(12px);}
 .stat-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:1.4rem 1.2rem;text-align:center;}
 .stat-value{font-size:2rem;font-weight:700;color:#fff;line-height:1;margin-bottom:4px;}
@@ -532,69 +578,152 @@ def render_sidebar(models_dict):
     av_col  = avatar_color(role)
     t_conn  = format_connected_time()
 
+    # CSS para estilizar el radio como menu de navegacion
+    st.markdown("""
+    <style>
+    /* Ocultar label del radio group */
+    [data-testid="stSidebar"] .stRadio>label{display:none!important;}
+    /* Contenedor vertical sin gap extra */
+    [data-testid="stSidebar"] .stRadio>div{flex-direction:column!important;gap:3px!important;}
+    /* Cada opcion del radio como nav item */
+    [data-testid="stSidebar"] .stRadio>div>label{
+        display:flex!important;align-items:center!important;
+        background:rgba(255,255,255,0.03)!important;
+        border:1px solid rgba(255,255,255,0.07)!important;
+        border-radius:8px!important;padding:9px 14px!important;
+        cursor:pointer!important;width:100%!important;margin:0!important;
+        color:rgba(255,255,255,0.65)!important;font-size:0.88rem!important;
+        transition:background 0.15s!important;
+    }
+    [data-testid="stSidebar"] .stRadio>div>label:hover{
+        background:rgba(255,255,255,0.07)!important;color:#fff!important;
+    }
+    /* Item seleccionado */
+    [data-testid="stSidebar"] .stRadio>div>label[data-baseweb="radio"]:has(input:checked),
+    [data-testid="stSidebar"] .stRadio>div>label[aria-checked="true"]{
+        background:rgba(37,99,235,0.30)!important;
+        border-color:rgba(96,165,250,0.40)!important;
+        color:#93c5fd!important;font-weight:600!important;
+    }
+    /* Ocultar circulo del radio */
+    [data-testid="stSidebar"] .stRadio>div>label>div:first-child{display:none!important;}
+    /* Texto del radio */
+    [data-testid="stSidebar"] .stRadio>div>label>div>p{
+        margin:0!important;font-size:0.88rem!important;
+        color:inherit!important;
+    }
+    /* Separador */
+    .sidebar-divider{height:1px;background:rgba(255,255,255,0.08);margin:0.8rem 0;}
+    /* Boton cerrar sesion */
+    [data-testid="stSidebar"] .stButton>button{
+        background:rgba(185,28,28,0.12)!important;
+        border:1px solid rgba(252,165,165,0.18)!important;
+        color:#fca5a5!important;width:100%!important;
+        border-radius:8px!important;padding:9px 14px!important;
+        font-size:0.88rem!important;font-weight:500!important;
+        transition:all 0.15s!important;
+    }
+    [data-testid="stSidebar"] .stButton>button:hover{
+        background:rgba(185,28,28,0.25)!important;color:#fff!important;
+        transform:none!important;box-shadow:none!important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     with st.sidebar:
-        st.markdown(f"""<div style="padding:1.2rem 0 1rem;">
+        # Logo
+        st.markdown("""
+        <div style="padding:1.2rem 0 1rem;">
             <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:#fff;">🦅 AvisFauna</div>
             <div style="font-size:0.73rem;color:rgba(255,255,255,0.32);margin-top:2px;">Identificacion inteligente</div>
-        </div><div style="height:1px;background:rgba(255,255,255,0.08);margin-bottom:1rem;"></div>""", unsafe_allow_html=True)
+        </div>
+        <div class="sidebar-divider"></div>
+        """, unsafe_allow_html=True)
 
-        # Tarjeta usuario
-        st.markdown(f"""<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:1rem;margin-bottom:1rem;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.9rem;">
-                <div style="width:42px;height:42px;border-radius:50%;background:{av_col};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.05rem;color:#fff;flex-shrink:0;box-shadow:0 0 0 3px rgba(255,255,255,0.08);">
+        # Tarjeta de usuario
+        st.markdown(f"""
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);
+                    border-radius:14px;padding:1rem;margin-bottom:0.8rem;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.85rem;">
+                <div style="width:42px;height:42px;border-radius:50%;background:{av_col};
+                            display:flex;align-items:center;justify-content:center;
+                            font-weight:700;font-size:1.05rem;color:#fff;flex-shrink:0;
+                            box-shadow:0 0 0 3px rgba(255,255,255,0.08);">
                     {name[0].upper() if name else "?"}
                 </div>
                 <div style="min-width:0;flex:1;">
-                    <div style="color:#fff;font-size:0.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{name}</div>
-                    <div style="font-size:0.71rem;color:rgba(255,255,255,0.38);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{email}</div>
+                    <div style="color:#fff;font-size:0.9rem;font-weight:600;
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{name}</div>
+                    <div style="font-size:0.71rem;color:rgba(255,255,255,0.38);
+                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{email}</div>
                 </div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid rgba(255,255,255,0.07);">
-                <span style="font-size:0.7rem;color:rgba(255,255,255,0.38);text-transform:uppercase;letter-spacing:0.07em;">Rol</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        padding:5px 0;border-top:1px solid rgba(255,255,255,0.07);">
+                <span style="font-size:0.69rem;color:rgba(255,255,255,0.38);
+                             text-transform:uppercase;letter-spacing:0.07em;">Rol</span>
                 {role_badge_html(role)}
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid rgba(255,255,255,0.07);">
-                <span style="font-size:0.7rem;color:rgba(255,255,255,0.38);text-transform:uppercase;letter-spacing:0.07em;">Conectado</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                        padding:5px 0;border-top:1px solid rgba(255,255,255,0.07);">
+                <span style="font-size:0.69rem;color:rgba(255,255,255,0.38);
+                             text-transform:uppercase;letter-spacing:0.07em;">Conectado</span>
                 <span style="font-size:0.82rem;font-weight:600;color:#60a5fa;">⏱ {t_conn}</span>
             </div>
-        </div>""", unsafe_allow_html=True)
+        </div>
+        <div class="sidebar-divider"></div>
+        """, unsafe_allow_html=True)
 
-        # Navegacion
+        # Navegacion con st.radio (unico metodo confiable en Streamlit sidebar)
         st.markdown('<div class="label-muted" style="margin-bottom:0.5rem;">Navegacion</div>', unsafe_allow_html=True)
-        nav_items = [("clasificador","🔬","Clasificador")]
-        if can(role,"ver_estadisticas"):     nav_items.append(("estadisticas","📊","Mis estadisticas"))
-        if can(role,"dashboard_admin"):      nav_items.append(("dashboard","🛡️","Panel de admin"))
-        if can(role,"gestionar_usuarios"):   nav_items.append(("roles","👥","Gestion de roles"))
 
-        for page_id, icon, label in nav_items:
-            active = current==page_id
-            bg     = "rgba(37,99,235,0.28)" if active else "rgba(255,255,255,0.03)"
-            color  = "#93c5fd"              if active else "rgba(255,255,255,0.62)"
-            border = "1px solid rgba(96,165,250,0.25)" if active else "1px solid rgba(255,255,255,0.06)"
-            st.markdown(f'<div style="background:{bg};border:{border};border-radius:8px;padding:8px 12px;margin-bottom:4px;color:{color};font-size:0.88rem;">{icon} {label}</div>', unsafe_allow_html=True)
-            if st.button(label, key=f"nav_{page_id}", use_container_width=True):
-                st.session_state.current_page = page_id; st.rerun()
+        nav_options = {"🔬 Clasificador": "clasificador"}
+        if can(role,"ver_estadisticas"):   nav_options["📊 Mis estadisticas"]  = "estadisticas"
+        if can(role,"dashboard_admin"):    nav_options["🛡️ Panel de admin"]    = "dashboard"
+        if can(role,"gestionar_usuarios"): nav_options["👥 Gestion de roles"]  = "roles"
+
+        labels  = list(nav_options.keys())
+        ids     = list(nav_options.values())
+        # Obtener index del page actual
+        try:
+            current_idx = ids.index(current)
+        except ValueError:
+            current_idx = 0
+
+        selected_label = st.radio(
+            "nav",
+            options=labels,
+            index=current_idx,
+            label_visibility="collapsed"
+        )
+        selected_page = nav_options[selected_label]
+        if selected_page != current:
+            st.session_state.current_page = selected_page
+            st.rerun()
 
         # Modelo
-        st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:0.8rem 0 0.6rem;"></div><div class="label-muted" style="margin-bottom:0.4rem;">Modelo de clasificacion</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-divider"></div><div class="label-muted" style="margin-bottom:0.4rem;">Modelo de clasificacion</div>', unsafe_allow_html=True)
         model_choice = st.selectbox("Modelo", list(models_dict.keys()), label_visibility="collapsed")
 
-        # Mini stats
-        st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:0.8rem 0 0.7rem;"></div><div class="label-muted" style="margin-bottom:0.6rem;">Mis aves mas examinadas</div>', unsafe_allow_html=True)
+        # Mini estadisticas de aves
+        st.markdown('<div class="sidebar-divider"></div><div class="label-muted" style="margin-bottom:0.6rem;">Mis aves mas examinadas</div>', unsafe_allow_html=True)
         top     = db_top_species(user_email=email, limit=5)
         total_u = db_count_predictions(user_email=email)
-        if total_u==0:
+
+        if total_u == 0:
             st.markdown('<div style="font-size:0.78rem;color:rgba(255,255,255,0.3);text-align:center;padding:0.8rem 0;font-style:italic;">Sin clasificaciones aun</div>', unsafe_allow_html=True)
         else:
             max_cnt = top[0][1] if top else 1
             for sp, cnt in top:
                 common  = COMMON_NAMES.get(sp,"")
-                pct_bar = cnt/max_cnt*100
-                pct_tot = cnt/total_u*100
-                st.markdown(f"""<div style="margin-bottom:9px;">
+                pct_bar = cnt / max_cnt * 100
+                pct_tot = cnt / total_u * 100
+                st.markdown(f"""
+                <div style="margin-bottom:9px;">
                     <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
                         <div style="min-width:0;flex:1;">
-                            <div style="font-size:0.76rem;font-style:italic;color:rgba(255,255,255,0.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{sp}</div>
+                            <div style="font-size:0.76rem;font-style:italic;color:rgba(255,255,255,0.72);
+                                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{sp}</div>
                             <div style="font-size:0.67rem;color:rgba(255,255,255,0.35);">{common}</div>
                         </div>
                         <div style="text-align:right;flex-shrink:0;margin-left:6px;">
@@ -603,13 +732,16 @@ def render_sidebar(models_dict):
                         </div>
                     </div>
                     <div style="background:rgba(255,255,255,0.06);border-radius:3px;height:4px;">
-                        <div style="width:{pct_bar:.1f}%;height:4px;border-radius:3px;background:linear-gradient(90deg,#1d4ed8,#60a5fa);"></div>
+                        <div style="width:{pct_bar:.1f}%;height:4px;border-radius:3px;
+                                    background:linear-gradient(90deg,#1d4ed8,#60a5fa);"></div>
                     </div>
-                </div>""", unsafe_allow_html=True)
-            st.markdown(f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);text-align:right;">{total_u} clasificaciones totales</div>', unsafe_allow_html=True)
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);text-align:right;margin-top:2px;">{total_u} clasificaciones totales</div>', unsafe_allow_html=True)
 
-        st.markdown('<div style="height:1px;background:rgba(255,255,255,0.08);margin:0.9rem 0 0.7rem;"></div>', unsafe_allow_html=True)
-        if st.button("Cerrar sesion", use_container_width=True):
+        # Cerrar sesion
+        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+        if st.button("🚪 Cerrar sesion", use_container_width=True):
             clear_session()
             for k in list(st.session_state.keys()): del st.session_state[k]
             st.rerun()
